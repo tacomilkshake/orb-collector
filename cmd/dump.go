@@ -23,7 +23,7 @@ func runDump(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid test ID: %s", args[0])
 	}
 
-	test, resp, wifi, err := db.DumpTestData(testID)
+	test, resp, wifi, speed, err := db.DumpTestData(testID)
 	if err != nil {
 		return fmt.Errorf("dump test %d: %w", testID, err)
 	}
@@ -32,6 +32,7 @@ func runDump(cmd *cobra.Command, args []string) error {
 		"test":           test,
 		"responsiveness": resp,
 		"wifi_link":      wifi,
+		"speed_results":  speed,
 	}
 
 	enc := json.NewEncoder(os.Stdout)

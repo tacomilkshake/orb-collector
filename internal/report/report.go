@@ -56,6 +56,37 @@ func PrintReport(w io.Writer, rows []store.ReportRow) {
 		dashes(9), dashes(9), dashes(9), dashes(9), dashes(7),
 		dashes(7), dashes(6), dashes(8), dashes(20))
 
+	// Check if any test has speed data
+	hasSpeed := false
+	for _, r := range rows {
+		if r.SpeedCount > 0 {
+			hasSpeed = true
+			break
+		}
+	}
+
+	if hasSpeed {
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "# Throughput (Orb Server Speed Tests)")
+		fmt.Fprintf(w, "| %-28s | %8s | %8s | %5s |\n", "Test", "DL Mbps", "UL Mbps", "Tests")
+		fmt.Fprintf(w, "|%s|%s|%s|%s|\n", dashes(30), dashes(10), dashes(10), dashes(7))
+		for _, r := range rows {
+			if r.SpeedCount == 0 {
+				continue
+			}
+			dlMbps := ""
+			if r.AvgDownloadKbps.Valid {
+				dlMbps = fmt.Sprintf("%.1f", r.AvgDownloadKbps.Float64/1000.0)
+			}
+			ulMbps := ""
+			if r.AvgUploadKbps.Valid {
+				ulMbps = fmt.Sprintf("%.1f", r.AvgUploadKbps.Float64/1000.0)
+			}
+			fmt.Fprintf(w, "| %-28s | %8s | %8s | %5d |\n", r.Name, dlMbps, ulMbps, r.SpeedCount)
+		}
+		fmt.Fprintln(w)
+	}
+
 	bestAvg := math.Inf(1)
 	bestTest := ""
 

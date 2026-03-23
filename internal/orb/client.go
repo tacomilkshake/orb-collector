@@ -59,6 +59,9 @@ var ResponsivenessEndpoints = []string{"responsiveness_1s", "responsiveness_15s"
 // WifiLinkEndpoints lists endpoints to try in preference order.
 var WifiLinkEndpoints = []string{"wifi_link_1s", "wifi_link_15s"}
 
+// SpeedResultsEndpoints lists endpoints to try in preference order.
+var SpeedResultsEndpoints = []string{"speed_results"}
+
 // FetchResponsiveness tries endpoints in order and returns the first non-empty result.
 func (c *Client) FetchResponsiveness() ([]ResponsivenessRecord, json.RawMessage, string, error) {
 	return fetchWithFallback[ResponsivenessRecord](c, ResponsivenessEndpoints)
@@ -106,6 +109,16 @@ func (c *Client) FetchResponsivenessRaw() ([]ResponsivenessRecord, []json.RawMes
 // FetchWifiLinkRaw fetches wifi_link with raw JSON per record.
 func (c *Client) FetchWifiLinkRaw() ([]WifiLinkRecord, []json.RawMessage, string, error) {
 	return fetchRawWithFallback[WifiLinkRecord](c, WifiLinkEndpoints)
+}
+
+// FetchSpeedResults fetches the speed_results dataset.
+func (c *Client) FetchSpeedResults() ([]SpeedResultsRecord, json.RawMessage, string, error) {
+	return fetchWithFallback[SpeedResultsRecord](c, SpeedResultsEndpoints)
+}
+
+// FetchSpeedResultsRaw fetches speed_results with raw JSON per record.
+func (c *Client) FetchSpeedResultsRaw() ([]SpeedResultsRecord, []json.RawMessage, string, error) {
+	return fetchRawWithFallback[SpeedResultsRecord](c, SpeedResultsEndpoints)
 }
 
 func fetchRawWithFallback[T any](c *Client, endpoints []string) ([]T, []json.RawMessage, string, error) {

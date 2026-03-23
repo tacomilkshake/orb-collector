@@ -36,6 +36,11 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		fmt.Println("[status] Collector NOT running")
 	}
 
+	// Orb Server
+	if orbServer != "" {
+		fmt.Printf("[status] Orb Server: %s\n", orbServer)
+	}
+
 	// Active test
 	active, err := db.GetActiveTest()
 	if err != nil {
@@ -79,8 +84,8 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	// Total counts
-	tests, resp, wifi, _ := db.TotalCounts()
-	fmt.Printf("[status] DB totals: %d tests, %d resp records, %d wifi records\n", tests, resp, wifi)
+	tests, resp, wifi, speed, _ := db.TotalCounts()
+	fmt.Printf("[status] DB totals: %d tests, %d resp records, %d wifi records, %d speed records\n", tests, resp, wifi, speed)
 
 	return nil
 }

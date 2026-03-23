@@ -15,6 +15,7 @@ import (
 const (
 	orbPollInterval   = 1 * time.Second
 	apPollInterval    = 30 * time.Second
+	speedPollInterval = 60 * time.Second
 	statusLogInterval = 60
 )
 
@@ -31,6 +32,10 @@ func runCollect(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("[collector] DB: %s\n", dbPath)
 	fmt.Printf("[collector] Orb: http://%s:%d (device=%s) every %s\n", orbHost, orbPort, orbDeviceID, orbPollInterval)
+	if orbServer != "" {
+		fmt.Printf("[collector] Orb Server: %s\n", orbServer)
+	}
+	fmt.Printf("[collector] Speed results: every %s\n", speedPollInterval)
 	if apConn != nil {
 		fmt.Printf("[collector] AP: %s (clients=%s) every %s\n", apConn.Name(), strings.Join(clientMACs, ","), apPollInterval)
 	}
@@ -55,11 +60,14 @@ func runCollect(cmd *cobra.Command, args []string) error {
 	var (
 		respEndpoint  string
 		wifiEndpoint  string
+		speedEndpoint string
 		pollCount     int
 		totalResp     int
 		totalWifi     int
+		totalSpeed    int
 		totalAP       int
 		lastAPPoll    time.Time
+		lastSpeedPoll time.Time
 	)
 
 	for {
@@ -120,6 +128,21 @@ func runCollect(cmd *cobra.Command, args []string) error {
 			lastAPPoll = time.Now()
 		}
 
+		// Speed results: poll every 60s
+		if time.Since(lastSpeedPoll) >= speedPollInterval {
+			speedRecords, speedRaw, ep, _ := orbClient.FetchSpeedResultsRaw()
+			if len(speedRecords) > 0 && ep != speedEndpoint {
+				speedEndpoint = ep
+				fmt.Printf("[collector] Using %s for speed_results\n", ep)
+			}
+			nSpeed, _ := db.InsertSpeedResults(speedRecords, speedRaw, testID, orbDeviceID)
+			totalSpeed += nSpeed
+			if nSpeed > 0 {
+				fmt.Printf("[collector] Speed: +%d records\n", nSpeed)
+			}
+			lastSpeedPoll = time.Now()
+		}
+
 		pollCount++
 		totalResp += nResp
 		totalWifi += nWifi
@@ -129,8 +152,8 @@ func runCollect(cmd *cobra.Command, args []string) error {
 			if activeTest != nil {
 				testLabel = fmt.Sprintf("test=%s", activeTest.Name)
 			}
-			fmt.Printf("[collector] polls=%d resp=%d wifi=%d ap=%d | %s\n",
-				pollCount, totalResp, totalWifi, totalAP, testLabel)
+			fmt.Printf("[collector] polls=%d resp=%d wifi=%d speed=%d ap=%d | %s\n",
+				pollCount, totalResp, totalWifi, totalSpeed, totalAP, testLabel)
 		}
 
 		// Sleep remainder of 1s interval

@@ -14,13 +14,14 @@ import (
 )
 
 var (
-	dbPath       string
-	orbHost      string
-	orbPort      int
-	apConnector  string
-	apURL        string
-	clientMAC    string
-	clientMACs   []string // parsed from comma-separated clientMAC
+	dbPath      string
+	orbHost     string
+	orbPort     int
+	orbServer   string
+	apConnector string
+	apURL       string
+	clientMAC   string
+	clientMACs  []string // parsed from comma-separated clientMAC
 )
 
 // Initialized in PersistentPreRunE.
@@ -96,6 +97,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&apConnector, "ap-connector", "omada", "AP connector (omada, none)")
 	rootCmd.PersistentFlags().StringVar(&apURL, "ap-url", "http://omada-bridge:8086", "AP connector base URL")
 	rootCmd.PersistentFlags().StringVar(&clientMAC, "client-mac", "20-F0-94-22-78-0D", "Client MAC address(es) to monitor (comma-separated for multiple)")
+	rootCmd.PersistentFlags().StringVar(&orbServer, "orb-server", "", "Local Orb Server address (e.g. 10.0.1.5:7443) for status/report display")
 
 	rootCmd.AddCommand(
 		newCollectCmd(),
