@@ -7,7 +7,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/tacomilkshake/orb-optimizer/internal/store"
+	"github.com/tacomilkshake/orb-collector/internal/store"
 )
 
 // Verdict returns a human-readable assessment of the test results.

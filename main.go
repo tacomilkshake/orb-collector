@@ -1,10 +1,10 @@
-// Package main provides the orb-optimizer CLI.
+// Package main provides the orb-collector CLI.
 package main
 
 import (
 	"os"
 
-	"github.com/tacomilkshake/orb-optimizer/cmd"
+	"github.com/tacomilkshake/orb-collector/cmd"
 )
 
 func main() {

@@ -41,6 +41,9 @@ func runCollect(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Println("[collector] Press Ctrl+C to stop")
 
+	// Start HTTP API server
+	startAPIServer(db, apiPort)
+
 	// Write PID file
 	pidPath := pidFilePath()
 	if err := os.WriteFile(pidPath, []byte(fmt.Sprintf("%d", os.Getpid())), 0644); err != nil {

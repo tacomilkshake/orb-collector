@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/tacomilkshake/orb-optimizer/internal/report"
+	"github.com/tacomilkshake/orb-collector/internal/report"
 )
 
 var reportDetail bool

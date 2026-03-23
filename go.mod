@@ -1,4 +1,4 @@
-module github.com/tacomilkshake/orb-optimizer
+module github.com/tacomilkshake/orb-collector
 
 go 1.25.6
 

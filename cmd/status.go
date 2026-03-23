@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -20,6 +21,11 @@ func newStatusCmd() *cobra.Command {
 }
 
 func runStatus(cmd *cobra.Command, args []string) error {
+	// If collector API is running, proxy the request
+	if db == nil {
+		return runStatusViaAPI()
+	}
+
 	// Check collector PID
 	pidPath := pidFilePath()
 	if data, err := os.ReadFile(pidPath); err == nil {
@@ -86,6 +92,61 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	// Total counts
 	tests, resp, wifi, speed, scores, _ := db.TotalCounts()
 	fmt.Printf("[status] DB totals: %d tests, %d resp records, %d wifi records, %d scores records, %d speed records\n", tests, resp, wifi, scores, speed)
+
+	return nil
+}
+
+func runStatusViaAPI() error {
+	data, status, err := proxyToAPI("GET", apiURL(apiPort)+"/api/status", nil)
+	if err != nil {
+		return fmt.Errorf("API request failed: %w", err)
+	}
+	if status != 200 {
+		return fmt.Errorf("API error (HTTP %d): %s", status, string(data))
+	}
+
+	var resp statusResponse
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return fmt.Errorf("parse API response: %w", err)
+	}
+
+	if resp.CollectorRunning {
+		fmt.Println("[status] Collector running (via API)")
+	}
+
+	if resp.ActiveTest != nil {
+		t := resp.ActiveTest
+		fmt.Printf("[status] Active test #%d: %s (ch%d/%dMHz)\n",
+			t.TestID, t.Name, t.Channel, t.WidthMHz)
+		fmt.Printf("[status] Elapsed: %.0fs | Samples: %d\n", t.ElapsedS, t.Samples)
+	} else {
+		fmt.Println("[status] No active test")
+	}
+
+	if resp.LatestReading != nil {
+		lr := resp.LatestReading
+		latencyMS := "nil"
+		if lr.LatencyMS != nil {
+			latencyMS = fmt.Sprintf("%.2fms", *lr.LatencyMS)
+		}
+		jitterMS := "nil"
+		if lr.JitterMS != nil {
+			jitterMS = fmt.Sprintf("%.2fms", *lr.JitterMS)
+		}
+		lossPct := "nil"
+		if lr.LossPct != nil {
+			lossPct = fmt.Sprintf("%.1f%%", *lr.LossPct)
+		}
+		ssid := ""
+		if lr.NetworkName != nil {
+			ssid = *lr.NetworkName
+		}
+		fmt.Printf("[status] Latest: latency=%s jitter=%s loss=%s SSID=%s (%.0fs ago)\n",
+			latencyMS, jitterMS, lossPct, ssid, lr.AgeS)
+	}
+
+	fmt.Printf("[status] DB totals: %d tests, %d resp records, %d wifi records, %d scores records, %d speed records\n",
+		resp.Totals.Tests, resp.Totals.Resp, resp.Totals.Wifi, resp.Totals.Scores, resp.Totals.Speed)
 
 	return nil
 }

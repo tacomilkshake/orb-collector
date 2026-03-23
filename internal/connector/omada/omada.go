@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/tacomilkshake/orb-optimizer/internal/connector"
+	"github.com/tacomilkshake/orb-collector/internal/connector"
 )
 
 // Connector talks to omada-bridge's REST API.

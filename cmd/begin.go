@@ -1,11 +1,13 @@
 package cmd
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/tacomilkshake/orb-optimizer/internal/store"
+	"github.com/tacomilkshake/orb-collector/internal/store"
 )
 
 var beginFlags struct {
@@ -60,6 +62,11 @@ func newBeginCmd() *cobra.Command {
 
 func runBegin(cmd *cobra.Command, args []string) error {
 	name := args[0]
+
+	// If collector API is running, proxy the request
+	if db == nil {
+		return runBeginViaAPI(name)
+	}
 
 	// Auto-end any active test
 	active, err := db.GetActiveTest()
@@ -118,5 +125,32 @@ func runBegin(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Printf("[begin] Started at %s\n", time.Now().UTC().Format(time.RFC3339))
 
+	return nil
+}
+
+func runBeginViaAPI(name string) error {
+	reqBody := beginRequest{
+		Name:    name,
+		Channel: beginFlags.channel,
+		Width:   beginFlags.width,
+		Freq:    beginFlags.freq,
+	}
+	body, _ := json.Marshal(reqBody)
+
+	data, status, err := proxyToAPI("POST", apiURL(apiPort)+"/api/begin", bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("API request failed: %w", err)
+	}
+	if status != 200 {
+		return fmt.Errorf("API error (HTTP %d): %s", status, string(data))
+	}
+
+	var resp beginResponse
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return fmt.Errorf("parse API response: %w", err)
+	}
+
+	fmt.Printf("[begin] Test #%d: %s (via API)\n", resp.TestID, resp.Name)
+	fmt.Printf("[begin] Started at %s\n", resp.StartedAt)
 	return nil
 }

@@ -10,7 +10,7 @@ import (
 
 const (
 	defaultTimeout = 5 * time.Second
-	callerID       = "orb-optimizer"
+	callerID       = "orb-collector"
 )
 
 // Client communicates with the Orb local API.

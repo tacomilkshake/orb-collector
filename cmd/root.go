@@ -1,4 +1,4 @@
-// Package cmd provides the CLI commands for orb-optimizer.
+// Package cmd provides the CLI commands for orb-collector.
 package cmd
 
 import (
@@ -7,10 +7,10 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/tacomilkshake/orb-optimizer/internal/connector"
-	"github.com/tacomilkshake/orb-optimizer/internal/connector/omada"
-	"github.com/tacomilkshake/orb-optimizer/internal/orb"
-	"github.com/tacomilkshake/orb-optimizer/internal/store"
+	"github.com/tacomilkshake/orb-collector/internal/connector"
+	"github.com/tacomilkshake/orb-collector/internal/connector/omada"
+	"github.com/tacomilkshake/orb-collector/internal/orb"
+	"github.com/tacomilkshake/orb-collector/internal/store"
 )
 
 var (
@@ -22,6 +22,7 @@ var (
 	apURL       string
 	clientMAC   string
 	clientMACs  []string // parsed from comma-separated clientMAC
+	apiPort     int
 )
 
 // Initialized in PersistentPreRunE.
@@ -32,9 +33,9 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "orb-optimizer",
+	Use:   "orb-collector",
 	Short: "WiFi performance test harness with Orb network sensors",
-	Long: `orb-optimizer collects data from Orb network sensors and manages
+	Long: `orb-collector collects data from Orb network sensors and manages
 AP radio settings via pluggable connectors. It supports:
 
   - Continuous data collection from Orb + AP polling
@@ -42,6 +43,15 @@ AP radio settings via pluggable connectors. It supports:
   - Performance reports with percentile analysis
   - AP client stats via pluggable connectors`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		// For begin/end/status: if the collector API is reachable, skip DB init
+		// (these commands will proxy to the HTTP API instead)
+		switch cmd.Name() {
+		case "begin", "end", "status":
+			if apiReachable(apiPort) {
+				return nil // skip DB init; command will use HTTP API
+			}
+		}
+
 		// Initialize store — use read-only for commands that don't write
 		var err error
 		switch cmd.Name() {
@@ -96,13 +106,14 @@ func Execute() error {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&dbPath, "db", "orb-optimizer.duckdb", "DuckDB database path")
+	rootCmd.PersistentFlags().StringVar(&dbPath, "db", "orb-collector.duckdb", "DuckDB database path")
 	rootCmd.PersistentFlags().StringVar(&orbHost, "orb-host", "10.0.1.47", "Orb sensor host")
 	rootCmd.PersistentFlags().IntVar(&orbPort, "orb-port", 8000, "Orb sensor port")
 	rootCmd.PersistentFlags().StringVar(&apConnector, "ap-connector", "omada", "AP connector (omada, none)")
 	rootCmd.PersistentFlags().StringVar(&apURL, "ap-url", "http://omada-bridge:8086", "AP connector base URL")
 	rootCmd.PersistentFlags().StringVar(&clientMAC, "client-mac", "20-F0-94-22-78-0D", "Client MAC address(es) to monitor (comma-separated for multiple)")
 	rootCmd.PersistentFlags().StringVar(&orbServer, "orb-server", "", "Local Orb Server address (e.g. 10.0.1.5:7443) for status/report display")
+	rootCmd.PersistentFlags().IntVar(&apiPort, "api-port", 8080, "HTTP API port for collector")
 
 	rootCmd.AddCommand(
 		newCollectCmd(),

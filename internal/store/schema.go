@@ -1,4 +1,4 @@
-// Package store provides DuckDB persistence for orb-optimizer.
+// Package store provides DuckDB persistence for orb-collector.
 package store
 
 // DDL defines the database schema.

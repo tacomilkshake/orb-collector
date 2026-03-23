@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/tacomilkshake/orb-optimizer/internal/connector"
-	"github.com/tacomilkshake/orb-optimizer/internal/orb"
+	"github.com/tacomilkshake/orb-collector/internal/connector"
+	"github.com/tacomilkshake/orb-collector/internal/orb"
 )
 
 // Test represents a row in the tests table.
