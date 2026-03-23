@@ -42,9 +42,14 @@ AP radio settings via pluggable connectors. It supports:
   - Performance reports with percentile analysis
   - Automated channel/width sweep testing`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		// Initialize store
+		// Initialize store — use read-only for commands that don't write
 		var err error
-		db, err = store.New(dbPath)
+		switch cmd.Name() {
+		case "status", "report", "dump":
+			db, err = store.NewReadOnly(dbPath)
+		default:
+			db, err = store.New(dbPath)
+		}
 		if err != nil {
 			return fmt.Errorf("open database: %w", err)
 		}

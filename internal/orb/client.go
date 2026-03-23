@@ -59,6 +59,9 @@ var ResponsivenessEndpoints = []string{"responsiveness_1s", "responsiveness_15s"
 // WifiLinkEndpoints lists endpoints to try in preference order.
 var WifiLinkEndpoints = []string{"wifi_link_1s", "wifi_link_15s"}
 
+// ScoresEndpoints lists endpoints to try in preference order.
+var ScoresEndpoints = []string{"scores_1s", "scores_1m"}
+
 // SpeedResultsEndpoints lists endpoints to try in preference order.
 var SpeedResultsEndpoints = []string{"speed_results"}
 
@@ -109,6 +112,16 @@ func (c *Client) FetchResponsivenessRaw() ([]ResponsivenessRecord, []json.RawMes
 // FetchWifiLinkRaw fetches wifi_link with raw JSON per record.
 func (c *Client) FetchWifiLinkRaw() ([]WifiLinkRecord, []json.RawMessage, string, error) {
 	return fetchRawWithFallback[WifiLinkRecord](c, WifiLinkEndpoints)
+}
+
+// FetchScores tries endpoints in order and returns the first non-empty result.
+func (c *Client) FetchScores() ([]ScoresRecord, json.RawMessage, string, error) {
+	return fetchWithFallback[ScoresRecord](c, ScoresEndpoints)
+}
+
+// FetchScoresRaw fetches scores with raw JSON per record.
+func (c *Client) FetchScoresRaw() ([]ScoresRecord, []json.RawMessage, string, error) {
+	return fetchRawWithFallback[ScoresRecord](c, ScoresEndpoints)
 }
 
 // FetchSpeedResults fetches the speed_results dataset.

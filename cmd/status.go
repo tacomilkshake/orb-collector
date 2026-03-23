@@ -84,8 +84,8 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	// Total counts
-	tests, resp, wifi, speed, _ := db.TotalCounts()
-	fmt.Printf("[status] DB totals: %d tests, %d resp records, %d wifi records, %d speed records\n", tests, resp, wifi, speed)
+	tests, resp, wifi, speed, scores, _ := db.TotalCounts()
+	fmt.Printf("[status] DB totals: %d tests, %d resp records, %d wifi records, %d scores records, %d speed records\n", tests, resp, wifi, scores, speed)
 
 	return nil
 }

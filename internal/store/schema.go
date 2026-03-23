@@ -8,6 +8,7 @@ CREATE SEQUENCE IF NOT EXISTS seq_responsiveness_id START 1;
 CREATE SEQUENCE IF NOT EXISTS seq_wifi_link_id START 1;
 CREATE SEQUENCE IF NOT EXISTS seq_ap_snapshots_id START 1;
 CREATE SEQUENCE IF NOT EXISTS seq_speed_results_id START 1;
+CREATE SEQUENCE IF NOT EXISTS seq_scores_id START 1;
 
 CREATE TABLE IF NOT EXISTS tests (
     id              BIGINT DEFAULT nextval('seq_tests_id') PRIMARY KEY,
@@ -93,6 +94,31 @@ CREATE TABLE IF NOT EXISTS speed_results (
     upload_bytes    BIGINT,
     server_name     TEXT,
     raw             JSON NOT NULL,
+    UNIQUE(orb_device_id, orb_timestamp)
+);
+
+CREATE TABLE IF NOT EXISTS scores (
+    id                      BIGINT DEFAULT nextval('seq_scores_id') PRIMARY KEY,
+    test_id                 BIGINT REFERENCES tests(id),
+    orb_device_id           TEXT NOT NULL DEFAULT '',
+    collected_at            TIMESTAMP NOT NULL,
+    orb_timestamp           TIMESTAMP NOT NULL,
+    interval_ms             INTEGER,
+    network_name            TEXT,
+    bssid                   TEXT,
+    orb_score               DOUBLE,
+    responsiveness_score    DOUBLE,
+    reliability_score       DOUBLE,
+    speed_score             DOUBLE,
+    lag_avg_us              BIGINT,
+    lag_count               INTEGER,
+    download_avg_kbps       BIGINT,
+    upload_avg_kbps         BIGINT,
+    speed_age_ms            BIGINT,
+    speed_count             INTEGER,
+    unresponsive_ms         BIGINT,
+    measured_ms             BIGINT,
+    raw                     JSON NOT NULL,
     UNIQUE(orb_device_id, orb_timestamp)
 );
 

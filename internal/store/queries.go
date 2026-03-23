@@ -183,6 +183,12 @@ func (s *Store) EndTest(testID int64) (respTagged, wifiTagged int64, err error) 
 		WHERE test_id IS NULL AND orb_timestamp BETWEEN ? AND ?`,
 		testID, startTime, now)
 
+	// Tag untagged scores records
+	_, _ = s.db.Exec(`
+		UPDATE scores SET test_id = ?
+		WHERE test_id IS NULL AND orb_timestamp BETWEEN ? AND ?`,
+		testID, startTime, now)
+
 	return respTagged, wifiTagged, nil
 }
 
@@ -307,6 +313,48 @@ func (s *Store) InsertSpeedResults(records []orb.SpeedResultsRecord, rawRecords 
 	return inserted, nil
 }
 
+// InsertScores inserts records, deduplicating by (orb_device_id, orb_timestamp).
+func (s *Store) InsertScores(records []orb.ScoresRecord, rawRecords []json.RawMessage, testID *int64, orbDeviceID string) (int, error) {
+	inserted := 0
+	for i, r := range records {
+		orbTS := time.UnixMilli(r.Timestamp).UTC()
+		var rawJSON string
+		if i < len(rawRecords) {
+			rawJSON = string(rawRecords[i])
+		} else {
+			b, _ := json.Marshal(r)
+			rawJSON = string(b)
+		}
+
+		_, err := s.db.Exec(`
+			INSERT INTO scores (
+				test_id, orb_device_id, collected_at, orb_timestamp, interval_ms,
+				network_name, bssid,
+				orb_score, responsiveness_score, reliability_score, speed_score,
+				lag_avg_us, lag_count,
+				download_avg_kbps, upload_avg_kbps,
+				speed_age_ms, speed_count,
+				unresponsive_ms, measured_ms,
+				raw
+			) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+			ON CONFLICT DO NOTHING`,
+			nilInt64(testID), orbDeviceID, time.Now().UTC(), orbTS, r.IntervalMS,
+			r.NetworkName, r.BSSID,
+			r.OrbScore, r.ResponsivenessScore, r.ReliabilityScore, r.SpeedScore,
+			r.LagAvgUS, r.LagCount,
+			r.DownloadAvgKbps, r.UploadAvgKbps,
+			r.SpeedAgeMS, r.SpeedCount,
+			r.UnresponsiveMS, r.MeasuredMS,
+			rawJSON,
+		)
+		if err != nil {
+			continue
+		}
+		inserted++
+	}
+	return inserted, nil
+}
+
 // InsertAPSnapshot inserts an AP client snapshot.
 func (s *Store) InsertAPSnapshot(info *connector.ClientInfo, testID *int64, platform string, clientMAC string) error {
 	if info == nil {
@@ -349,22 +397,30 @@ func (s *Store) CountSpeedResults(testID int64) (int64, error) {
 	return count, err
 }
 
+// CountScores returns the number of scores records for a test.
+func (s *Store) CountScores(testID int64) (int64, error) {
+	var count int64
+	err := s.db.QueryRow("SELECT COUNT(*) FROM scores WHERE test_id = ?", testID).Scan(&count)
+	return count, err
+}
+
 // TotalCounts returns total record counts across all data.
-func (s *Store) TotalCounts() (tests, resp, wifi, speed int64, err error) {
+func (s *Store) TotalCounts() (tests, resp, wifi, speed, scores int64, err error) {
 	s.db.QueryRow("SELECT COUNT(*) FROM tests").Scan(&tests)
 	s.db.QueryRow("SELECT COUNT(*) FROM responsiveness").Scan(&resp)
 	s.db.QueryRow("SELECT COUNT(*) FROM wifi_link").Scan(&wifi)
 	s.db.QueryRow("SELECT COUNT(*) FROM speed_results").Scan(&speed)
+	s.db.QueryRow("SELECT COUNT(*) FROM scores").Scan(&scores)
 	return
 }
 
 // LatestReading holds the most recent responsiveness reading.
 type LatestReading struct {
-	OrbTimestamp   time.Time
-	LatencyAvgUS   sql.NullInt64
-	JitterAvgUS    sql.NullInt64
-	PacketLossPct  sql.NullFloat64
-	NetworkName    sql.NullString
+	OrbTimestamp  time.Time
+	LatencyAvgUS  sql.NullInt64
+	JitterAvgUS   sql.NullInt64
+	PacketLossPct sql.NullFloat64
+	NetworkName   sql.NullString
 }
 
 // GetLatestReading returns the most recent responsiveness record.
@@ -501,7 +557,7 @@ func (s *Store) GetReportRows() ([]ReportRow, error) {
 }
 
 // DumpTestData returns all data for a test as maps for JSON export.
-func (s *Store) DumpTestData(testID int64) (test map[string]any, resp []map[string]any, wifi []map[string]any, speed []map[string]any, err error) {
+func (s *Store) DumpTestData(testID int64) (test map[string]any, resp []map[string]any, wifi []map[string]any, speed []map[string]any, scores []map[string]any, err error) {
 	// Test metadata
 	row := s.db.QueryRow(`SELECT * FROM tests WHERE id = ?`, testID)
 	test, err = scanRowAsMap(row, []string{
@@ -527,6 +583,12 @@ func (s *Store) DumpTestData(testID int64) (test map[string]any, resp []map[stri
 
 	// Speed results
 	speed, err = queryAsMapSlice(s.db, `SELECT * FROM speed_results WHERE test_id = ? ORDER BY orb_timestamp`, testID)
+	if err != nil {
+		return
+	}
+
+	// Scores
+	scores, err = queryAsMapSlice(s.db, `SELECT * FROM scores WHERE test_id = ? ORDER BY orb_timestamp`, testID)
 	return
 }
 

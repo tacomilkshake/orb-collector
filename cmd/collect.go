@@ -58,16 +58,18 @@ func runCollect(cmd *cobra.Command, args []string) error {
 	}()
 
 	var (
-		respEndpoint  string
-		wifiEndpoint  string
-		speedEndpoint string
-		pollCount     int
-		totalResp     int
-		totalWifi     int
-		totalSpeed    int
-		totalAP       int
-		lastAPPoll    time.Time
-		lastSpeedPoll time.Time
+		respEndpoint   string
+		wifiEndpoint   string
+		speedEndpoint  string
+		scoresEndpoint string
+		pollCount      int
+		totalResp      int
+		totalWifi      int
+		totalSpeed     int
+		totalScores    int
+		totalAP        int
+		lastAPPoll     time.Time
+		lastSpeedPoll  time.Time
 	)
 
 	for {
@@ -97,6 +99,14 @@ func runCollect(cmd *cobra.Command, args []string) error {
 			fmt.Printf("[collector] Using %s for wifi_link\n", ep)
 		}
 		nWifi, _ := db.InsertWifiLink(wifiRecords, wifiRaw, testID, orbDeviceID)
+
+		// Scores: poll every cycle (1s)
+		scoresRecords, scoresRaw, ep, _ := orbClient.FetchScoresRaw()
+		if len(scoresRecords) > 0 && ep != scoresEndpoint {
+			scoresEndpoint = ep
+			fmt.Printf("[collector] Using %s for scores\n", ep)
+		}
+		nScores, _ := db.InsertScores(scoresRecords, scoresRaw, testID, orbDeviceID)
 
 		// AP: poll every 30s (iterate all client MACs)
 		if apConn != nil && time.Since(lastAPPoll) >= apPollInterval {
@@ -146,14 +156,15 @@ func runCollect(cmd *cobra.Command, args []string) error {
 		pollCount++
 		totalResp += nResp
 		totalWifi += nWifi
+		totalScores += nScores
 
 		if pollCount%statusLogInterval == 0 {
 			testLabel := "no active test"
 			if activeTest != nil {
 				testLabel = fmt.Sprintf("test=%s", activeTest.Name)
 			}
-			fmt.Printf("[collector] polls=%d resp=%d wifi=%d speed=%d ap=%d | %s\n",
-				pollCount, totalResp, totalWifi, totalSpeed, totalAP, testLabel)
+			fmt.Printf("[collector] polls=%d resp=%d wifi=%d scores=%d speed=%d ap=%d | %s\n",
+				pollCount, totalResp, totalWifi, totalScores, totalSpeed, totalAP, testLabel)
 		}
 
 		// Sleep remainder of 1s interval

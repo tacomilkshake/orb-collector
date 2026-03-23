@@ -27,6 +27,17 @@ func New(path string) (*Store, error) {
 	return &Store{db: db}, nil
 }
 
+// NewReadOnly opens a DuckDB database in read-only mode (no locking conflicts).
+func NewReadOnly(path string) (*Store, error) {
+	dsn := path + "?access_mode=read_only"
+	db, err := sql.Open("duckdb", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("open duckdb read-only %s: %w", path, err)
+	}
+
+	return &Store{db: db}, nil
+}
+
 // Close closes the database.
 func (s *Store) Close() error {
 	return s.db.Close()

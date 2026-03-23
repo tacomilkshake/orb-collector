@@ -36,6 +36,26 @@ type SpeedResultsRecord struct {
 	ServerName    *string `json:"server_name"`
 }
 
+// ScoresRecord represents a single scores measurement from the Orb.
+type ScoresRecord struct {
+	Timestamp           int64   `json:"timestamp"`
+	IntervalMS          *int    `json:"interval_ms"`
+	NetworkName         *string `json:"network_name"`
+	BSSID               *string `json:"bssid"`
+	OrbScore            float64 `json:"orb_score"`
+	ResponsivenessScore float64 `json:"responsiveness_score"`
+	ReliabilityScore    float64 `json:"reliability_score"`
+	SpeedScore          float64 `json:"speed_score"`
+	LagAvgUS            *int64  `json:"lag_avg_us"`
+	LagCount            *int    `json:"lag_count"`
+	DownloadAvgKbps     *int64  `json:"download_avg_kbps"`
+	UploadAvgKbps       *int64  `json:"upload_avg_kbps"`
+	SpeedAgeMS          *int64  `json:"speed_age_ms"`
+	SpeedCount          *int    `json:"speed_count"`
+	UnresponsiveMS      *int64  `json:"unresponsive_ms"`
+	MeasuredMS          *int64  `json:"measured_ms"`
+}
+
 // WifiLinkRecord represents a single wifi_link measurement from the Orb.
 type WifiLinkRecord struct {
 	Timestamp     int64   `json:"timestamp"`
