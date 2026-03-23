@@ -54,11 +54,11 @@ func runReport(cmd *cobra.Command, args []string) error {
 			// Latency distribution
 			buckets, err := db.DB().Query(`
 				SELECT
-					SUM(CASE WHEN router_latency_avg_us < 10000 THEN 1 ELSE 0 END),
-					SUM(CASE WHEN router_latency_avg_us >= 10000 AND router_latency_avg_us < 20000 THEN 1 ELSE 0 END),
-					SUM(CASE WHEN router_latency_avg_us >= 20000 AND router_latency_avg_us < 30000 THEN 1 ELSE 0 END),
-					SUM(CASE WHEN router_latency_avg_us >= 30000 AND router_latency_avg_us < 50000 THEN 1 ELSE 0 END),
-					SUM(CASE WHEN router_latency_avg_us >= 50000 THEN 1 ELSE 0 END),
+					COALESCE(SUM(CASE WHEN latency_avg_us < 10000 THEN 1 ELSE 0 END), 0),
+					COALESCE(SUM(CASE WHEN latency_avg_us >= 10000 AND latency_avg_us < 20000 THEN 1 ELSE 0 END), 0),
+					COALESCE(SUM(CASE WHEN latency_avg_us >= 20000 AND latency_avg_us < 30000 THEN 1 ELSE 0 END), 0),
+					COALESCE(SUM(CASE WHEN latency_avg_us >= 30000 AND latency_avg_us < 50000 THEN 1 ELSE 0 END), 0),
+					COALESCE(SUM(CASE WHEN latency_avg_us >= 50000 THEN 1 ELSE 0 END), 0),
 					COUNT(*)
 				FROM responsiveness WHERE test_id = ?`, t.ID)
 			if err != nil {
