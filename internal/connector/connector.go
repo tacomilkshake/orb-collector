@@ -3,6 +3,7 @@ package connector
 
 // ClientInfo holds AP-reported client stats.
 type ClientInfo struct {
+	MAC       string  `json:"mac"`
 	RSSI      *int    `json:"rssi"`
 	SNR       *int    `json:"snr"`
 	Signal    *int    `json:"signal"`
@@ -22,4 +23,5 @@ type ClientInfo struct {
 type APConnector interface {
 	Name() string
 	GetClient(mac string) (*ClientInfo, error)
+	GetAllClients() ([]ClientInfo, error)
 }

@@ -376,6 +376,40 @@ func (s *Store) InsertAPSnapshot(info *connector.ClientInfo, testID *int64, plat
 	return err
 }
 
+// InsertAPSnapshots inserts all client snapshots in one transaction.
+func (s *Store) InsertAPSnapshots(testID *int64, snapshots []connector.ClientInfo, platform string) (int, error) {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return 0, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	now := time.Now().UTC()
+	inserted := 0
+	for _, info := range snapshots {
+		rawJSON, _ := json.Marshal(info.Raw)
+		_, err := tx.Exec(`
+			INSERT INTO ap_snapshots (
+				test_id, client_mac, timestamp, platform, rssi, snr, signal, channel, band,
+				ap_name, power_save, rx_rate, tx_rate, wifi_mode, activity, raw
+			) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+			nilInt64(testID), info.MAC, now, platform,
+			info.RSSI, info.SNR, info.Signal, info.Channel, info.Band,
+			info.APName, info.PowerSave, info.RxRate, info.TxRate, info.WifiMode, info.Activity,
+			string(rawJSON),
+		)
+		if err != nil {
+			continue
+		}
+		inserted++
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit tx: %w", err)
+	}
+	return inserted, nil
+}
+
 // CountResponsiveness returns the number of responsiveness records for a test.
 func (s *Store) CountResponsiveness(testID int64) (int64, error) {
 	var count int64

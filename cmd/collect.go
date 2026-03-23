@@ -37,7 +37,7 @@ func runCollect(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Printf("[collector] Speed results: every %s\n", speedPollInterval)
 	if apConn != nil {
-		fmt.Printf("[collector] AP: %s (clients=%s) every %s\n", apConn.Name(), strings.Join(clientMACs, ","), apPollInterval)
+		fmt.Printf("[collector] AP: %s (all clients) every %s\n", apConn.Name(), apPollInterval)
 	}
 	fmt.Println("[collector] Press Ctrl+C to stop")
 
@@ -108,31 +108,18 @@ func runCollect(cmd *cobra.Command, args []string) error {
 		}
 		nScores, _ := db.InsertScores(scoresRecords, scoresRaw, testID, orbDeviceID)
 
-		// AP: poll every 30s (iterate all client MACs)
+		// AP: poll every 30s (all wireless clients)
 		if apConn != nil && time.Since(lastAPPoll) >= apPollInterval {
-			for _, mac := range clientMACs {
-				info, err := apConn.GetClient(mac)
-				if err == nil && info != nil {
-					if err := db.InsertAPSnapshot(info, testID, apConn.Name(), mac); err == nil {
-						totalAP++
-						ps := "OFF"
-						if info.PowerSave != nil && *info.PowerSave {
-							ps = "ON"
-						}
-						ch := 0
-						if info.Channel != nil {
-							ch = *info.Channel
-						}
-						rssi := 0
-						if info.RSSI != nil {
-							rssi = *info.RSSI
-						}
-						snr := 0
-						if info.SNR != nil {
-							snr = *info.SNR
-						}
-						fmt.Printf("[collector] AP[%s]: ch%d RSSI=%d SNR=%d powerSave=%s\n", mac, ch, rssi, snr, ps)
-					}
+			clients, err := apConn.GetAllClients()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "[collector] AP GetAllClients: %s\n", err)
+			} else {
+				n, err := db.InsertAPSnapshots(testID, clients, apConn.Name())
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "[collector] AP insert: %s\n", err)
+				} else {
+					totalAP += n
+					fmt.Printf("[collector] AP: %d clients snapshot\n", n)
 				}
 			}
 			lastAPPoll = time.Now()
