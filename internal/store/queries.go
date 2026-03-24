@@ -355,27 +355,6 @@ func (s *Store) InsertScores(records []orb.ScoresRecord, rawRecords []json.RawMe
 	return inserted, nil
 }
 
-// InsertAPSnapshot inserts an AP client snapshot.
-func (s *Store) InsertAPSnapshot(info *connector.ClientInfo, testID *int64, platform string, clientMAC string) error {
-	if info == nil {
-		return nil
-	}
-
-	rawJSON, _ := json.Marshal(info.Raw)
-
-	_, err := s.db.Exec(`
-		INSERT INTO ap_snapshots (
-			test_id, client_mac, timestamp, platform, rssi, snr, signal, channel, band,
-			ap_name, power_save, rx_rate, tx_rate, wifi_mode, activity, raw
-		) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-		nilInt64(testID), clientMAC, time.Now().UTC(), platform,
-		info.RSSI, info.SNR, info.Signal, info.Channel, info.Band,
-		info.APName, info.PowerSave, info.RxRate, info.TxRate, info.WifiMode, info.Activity,
-		string(rawJSON),
-	)
-	return err
-}
-
 // InsertAPSnapshots inserts all client snapshots in one transaction.
 func (s *Store) InsertAPSnapshots(testID *int64, snapshots []connector.ClientInfo, platform string) (int, error) {
 	tx, err := s.db.Begin()
@@ -424,13 +403,6 @@ func (s *Store) CountWifiLink(testID int64) (int64, error) {
 	return count, err
 }
 
-// CountSpeedResults returns the number of speed_results records for a test.
-func (s *Store) CountSpeedResults(testID int64) (int64, error) {
-	var count int64
-	err := s.db.QueryRow("SELECT COUNT(*) FROM speed_results WHERE test_id = ?", testID).Scan(&count)
-	return count, err
-}
-
 // CountScores returns the number of scores records for a test.
 func (s *Store) CountScores(testID int64) (int64, error) {
 	var count int64
@@ -440,11 +412,19 @@ func (s *Store) CountScores(testID int64) (int64, error) {
 
 // TotalCounts returns total record counts across all data.
 func (s *Store) TotalCounts() (tests, resp, wifi, speed, scores int64, err error) {
-	s.db.QueryRow("SELECT COUNT(*) FROM tests").Scan(&tests)
-	s.db.QueryRow("SELECT COUNT(*) FROM responsiveness").Scan(&resp)
-	s.db.QueryRow("SELECT COUNT(*) FROM wifi_link").Scan(&wifi)
-	s.db.QueryRow("SELECT COUNT(*) FROM speed_results").Scan(&speed)
-	s.db.QueryRow("SELECT COUNT(*) FROM scores").Scan(&scores)
+	if err = s.db.QueryRow("SELECT COUNT(*) FROM tests").Scan(&tests); err != nil {
+		return
+	}
+	if err = s.db.QueryRow("SELECT COUNT(*) FROM responsiveness").Scan(&resp); err != nil {
+		return
+	}
+	if err = s.db.QueryRow("SELECT COUNT(*) FROM wifi_link").Scan(&wifi); err != nil {
+		return
+	}
+	if err = s.db.QueryRow("SELECT COUNT(*) FROM speed_results").Scan(&speed); err != nil {
+		return
+	}
+	err = s.db.QueryRow("SELECT COUNT(*) FROM scores").Scan(&scores)
 	return
 }
 

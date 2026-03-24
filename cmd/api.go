@@ -30,7 +30,7 @@ func startAPIServer(s *store.Store, port int) {
 	mux.HandleFunc("GET /api/status", srv.handleStatus)
 	mux.HandleFunc("GET /api/health", srv.handleHealth)
 
-	addr := fmt.Sprintf(":%d", port)
+	addr := fmt.Sprintf("127.0.0.1:%d", port)
 	fmt.Printf("[api] HTTP server listening on %s\n", addr)
 
 	go func() {
@@ -74,7 +74,10 @@ func (srv *apiServer) handleBegin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if active != nil {
-		srv.store.EndTest(active.ID)
+		if _, _, err := srv.store.EndTest(active.ID); err != nil {
+			httpError(w, http.StatusInternalServerError, "end previous test: %s", err)
+			return
+		}
 	}
 
 	params := store.BeginTestParams{

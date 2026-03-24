@@ -55,6 +55,10 @@ func (c *Client) fetchDataset(dataset string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("orb API %s: HTTP %d", dataset, resp.StatusCode)
+	}
+
 	return io.ReadAll(resp.Body)
 }
 
@@ -70,46 +74,7 @@ var ScoresEndpoints = []string{"scores_1s", "scores_1m"}
 // SpeedResultsEndpoints lists endpoints to try in preference order.
 var SpeedResultsEndpoints = []string{"speed_results"}
 
-// FetchResponsiveness tries endpoints in order and returns the first non-empty result.
-func (c *Client) FetchResponsiveness() ([]ResponsivenessRecord, json.RawMessage, string, error) {
-	return fetchWithFallback[ResponsivenessRecord](c, ResponsivenessEndpoints)
-}
-
-// FetchWifiLink tries endpoints in order and returns the first non-empty result.
-func (c *Client) FetchWifiLink() ([]WifiLinkRecord, json.RawMessage, string, error) {
-	return fetchWithFallback[WifiLinkRecord](c, WifiLinkEndpoints)
-}
-
-// fetchWithFallback tries each endpoint and returns the first with data.
-// Returns typed records, the raw JSON array, and the endpoint name used.
-func fetchWithFallback[T any](c *Client, endpoints []string) ([]T, json.RawMessage, string, error) {
-	for _, ep := range endpoints {
-		data, err := c.fetchDataset(ep)
-		if err != nil {
-			continue
-		}
-
-		// Parse as raw array first
-		var rawArray []json.RawMessage
-		if err := json.Unmarshal(data, &rawArray); err != nil {
-			continue
-		}
-		if len(rawArray) == 0 {
-			continue
-		}
-
-		// Parse typed records
-		var records []T
-		if err := json.Unmarshal(data, &records); err != nil {
-			continue
-		}
-
-		return records, data, ep, nil
-	}
-	return nil, nil, endpoints[0], nil
-}
-
-// FetchRawRecords fetches a dataset and returns each record as raw JSON + its typed form.
+// FetchResponsivenessRaw fetches responsiveness with raw JSON per record.
 func (c *Client) FetchResponsivenessRaw() ([]ResponsivenessRecord, []json.RawMessage, string, error) {
 	return fetchRawWithFallback[ResponsivenessRecord](c, ResponsivenessEndpoints)
 }
@@ -119,19 +84,9 @@ func (c *Client) FetchWifiLinkRaw() ([]WifiLinkRecord, []json.RawMessage, string
 	return fetchRawWithFallback[WifiLinkRecord](c, WifiLinkEndpoints)
 }
 
-// FetchScores tries endpoints in order and returns the first non-empty result.
-func (c *Client) FetchScores() ([]ScoresRecord, json.RawMessage, string, error) {
-	return fetchWithFallback[ScoresRecord](c, ScoresEndpoints)
-}
-
 // FetchScoresRaw fetches scores with raw JSON per record.
 func (c *Client) FetchScoresRaw() ([]ScoresRecord, []json.RawMessage, string, error) {
 	return fetchRawWithFallback[ScoresRecord](c, ScoresEndpoints)
-}
-
-// FetchSpeedResults fetches the speed_results dataset.
-func (c *Client) FetchSpeedResults() ([]SpeedResultsRecord, json.RawMessage, string, error) {
-	return fetchWithFallback[SpeedResultsRecord](c, SpeedResultsEndpoints)
 }
 
 // FetchSpeedResultsRaw fetches speed_results with raw JSON per record.

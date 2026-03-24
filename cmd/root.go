@@ -4,6 +4,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -21,8 +22,6 @@ var (
 	orbServer   string
 	apConnector string
 	apURL       string
-	clientMAC   string
-	clientMACs  []string // parsed from comma-separated clientMAC
 	apiPort     int
 )
 
@@ -35,7 +34,6 @@ type OrbTarget struct {
 // Initialized in PersistentPreRunE.
 var (
 	db         *store.Store
-	orbClient  *orb.Client // single client (legacy)
 	orbTargets []OrbTarget // multiple orb targets
 	apConn     connector.APConnector
 )
@@ -84,8 +82,9 @@ AP radio settings via pluggable connectors. It supports:
 				host, port := entry, orbPort
 				if h, p, ok := strings.Cut(entry, ":"); ok {
 					host = h
-					parsed, err := fmt.Sscanf(p, "%d", &port)
-					if err != nil || parsed != 1 {
+					var err error
+					port, err = strconv.Atoi(p)
+					if err != nil {
 						return fmt.Errorf("invalid orb-hosts port in %q: %w", entry, err)
 					}
 				}
@@ -97,8 +96,6 @@ AP radio settings via pluggable connectors. It supports:
 			c := orb.NewClient(orbHost, orbPort)
 			orbTargets = append(orbTargets, OrbTarget{Client: c, DeviceID: orbHost})
 		}
-		orbClient = orbTargets[0].Client // keep for compatibility
-
 		// Initialize AP connector
 		switch apConnector {
 		case "omada":
@@ -107,15 +104,6 @@ AP radio settings via pluggable connectors. It supports:
 			apConn = nil
 		default:
 			return fmt.Errorf("unknown AP connector: %s", apConnector)
-		}
-
-		// Parse comma-separated client MACs
-		clientMACs = nil
-		for _, m := range strings.Split(clientMAC, ",") {
-			m = strings.TrimSpace(m)
-			if m != "" {
-				clientMACs = append(clientMACs, m)
-			}
 		}
 
 		return nil
@@ -144,7 +132,6 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&orbHosts, "orb-hosts", "", "Comma-separated orb host:port pairs (overrides --orb-host/--orb-port)")
 	rootCmd.PersistentFlags().StringVar(&apConnector, "ap-connector", "omada", "AP connector (omada, none)")
 	rootCmd.PersistentFlags().StringVar(&apURL, "ap-url", "http://omada-bridge:8086", "AP connector base URL")
-	rootCmd.PersistentFlags().StringVar(&clientMAC, "client-mac", "20-F0-94-22-78-0D", "Client MAC address(es) to monitor (comma-separated for multiple)")
 	rootCmd.PersistentFlags().StringVar(&orbServer, "orb-server", "", "Local Orb Server address (e.g. 10.0.1.5:7443) for status/report display")
 	rootCmd.PersistentFlags().IntVar(&apiPort, "api-port", 8080, "HTTP API port for collector")
 

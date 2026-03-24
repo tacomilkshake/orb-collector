@@ -23,13 +23,6 @@ var beginFlags struct {
 	txRate    int
 	wifiMode  string
 	notes     string
-	// Track which flags were explicitly set
-	rssiSet      bool
-	snrSet       bool
-	apChannelSet bool
-	powerSaveSet bool
-	rxRateSet    bool
-	txRateSet    bool
 }
 
 func newBeginCmd() *cobra.Command {
@@ -74,7 +67,9 @@ func runBegin(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("check active test: %w", err)
 	}
 	if active != nil {
-		db.EndTest(active.ID)
+		if _, _, err := db.EndTest(active.ID); err != nil {
+			return fmt.Errorf("end previous test: %w", err)
+		}
 		fmt.Printf("[begin] Auto-ended previous test: %s\n", active.Name)
 	}
 

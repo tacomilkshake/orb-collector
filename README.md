@@ -20,8 +20,9 @@ Orb Sensors (Pixel 8a, wlanpi, etc.)
 +--------------+     +-----------+
 | orb-collector|---->|   DuckDB  |
 +--------------+     +-----------+
+    ^
     | HTTP API (30s polling)
-    v
+    |
 AP Platform (Omada, etc.)
 ```
 
@@ -40,6 +41,15 @@ AP Platform (Omada, etc.)
 orb-collector collect \
   --db /data/orb-collector.db \
   --orb-host 10.0.1.47 --orb-port 8000 \
+  --ap-connector omada --ap-url http://omada-bridge:8086
+```
+
+### Multi-orb collection
+
+```bash
+orb-collector collect \
+  --db /data/orb-collector.db \
+  --orb-hosts "10.0.1.47:8000,10.0.1.48:8000" \
   --ap-connector omada --ap-url http://omada-bridge:8086
 ```
 
@@ -74,7 +84,7 @@ docker run -v ./data:/data ghcr.io/tacomilkshake/orb-collector:main \
 
 ## Data model
 
-Stored in DuckDB with 5 tables:
+Stored in DuckDB with 6 tables:
 
 - **responsiveness** -- per-second latency, lag, jitter, packet loss
 - **wifi_link** -- per-second client-side RSSI, SNR, rates, channel

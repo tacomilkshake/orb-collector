@@ -46,18 +46,16 @@ func runCollect(cmd *cobra.Command, args []string) error {
 
 	// Write PID file
 	pidPath := pidFilePath()
-	if err := os.WriteFile(pidPath, []byte(fmt.Sprintf("%d", os.Getpid())), 0644); err != nil {
+	if err := os.WriteFile(pidPath, []byte(fmt.Sprintf("%d", os.Getpid())), 0600); err != nil {
 		return fmt.Errorf("write PID file: %w", err)
 	}
 
 	// Cleanup on signal
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		<-sigCh
+	defer func() {
 		os.Remove(pidPath)
-		fmt.Println("\n[collector] Stopped.")
-		os.Exit(0)
+		fmt.Println("[collector] Stopped.")
 	}()
 
 	// Per-target endpoint tracking
@@ -81,6 +79,13 @@ func runCollect(cmd *cobra.Command, args []string) error {
 	)
 
 	for {
+		// Check for shutdown signal (non-blocking)
+		select {
+		case <-sigCh:
+			return nil
+		default:
+		}
+
 		loopStart := time.Now()
 
 		// Get active test
@@ -172,10 +177,14 @@ func runCollect(cmd *cobra.Command, args []string) error {
 				pollCount, totalResp, totalWifi, totalScores, totalSpeed, totalAP, len(orbTargets), testLabel)
 		}
 
-		// Sleep remainder of 1s interval
+		// Sleep remainder of 1s interval, but wake on signal
 		elapsed := time.Since(loopStart)
 		if sleep := orbPollInterval - elapsed; sleep > 0 {
-			time.Sleep(sleep)
+			select {
+			case <-sigCh:
+				return nil
+			case <-time.After(sleep):
+			}
 		}
 	}
 }

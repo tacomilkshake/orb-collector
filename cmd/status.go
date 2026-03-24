@@ -91,7 +91,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 
 	// Total counts
 	tests, resp, wifi, speed, scores, _ := db.TotalCounts()
-	fmt.Printf("[status] DB totals: %d tests, %d resp records, %d wifi records, %d scores records, %d speed records\n", tests, resp, wifi, scores, speed)
+	fmt.Printf("[status] DB totals: %d tests, %d resp records, %d wifi records, %d speed records, %d scores records\n", tests, resp, wifi, speed, scores)
 
 	return nil
 }
@@ -145,8 +145,8 @@ func runStatusViaAPI() error {
 			latencyMS, jitterMS, lossPct, ssid, lr.AgeS)
 	}
 
-	fmt.Printf("[status] DB totals: %d tests, %d resp records, %d wifi records, %d scores records, %d speed records\n",
-		resp.Totals.Tests, resp.Totals.Resp, resp.Totals.Wifi, resp.Totals.Scores, resp.Totals.Speed)
+	fmt.Printf("[status] DB totals: %d tests, %d resp records, %d wifi records, %d speed records, %d scores records\n",
+		resp.Totals.Tests, resp.Totals.Resp, resp.Totals.Wifi, resp.Totals.Speed, resp.Totals.Scores)
 
 	return nil
 }

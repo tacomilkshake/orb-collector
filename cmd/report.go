@@ -66,7 +66,9 @@ func runReport(cmd *cobra.Command, args []string) error {
 			}
 			if buckets.Next() {
 				var b [6]int64
-				buckets.Scan(&b[0], &b[1], &b[2], &b[3], &b[4], &b[5])
+				if err := buckets.Scan(&b[0], &b[1], &b[2], &b[3], &b[4], &b[5]); err != nil {
+					continue
+				}
 				if b[5] > 0 {
 					fmt.Println("  Latency distribution:")
 					labels := []string{"<10ms", "10-20ms", "20-30ms", "30-50ms", ">50ms"}
