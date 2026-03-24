@@ -28,10 +28,10 @@ func newCollectCmd() *cobra.Command {
 }
 
 func runCollect(cmd *cobra.Command, args []string) error {
-	orbDeviceID := orbHost // use host as device identifier
-
 	fmt.Printf("[collector] DB: %s\n", dbPath)
-	fmt.Printf("[collector] Orb: http://%s:%d (device=%s) every %s\n", orbHost, orbPort, orbDeviceID, orbPollInterval)
+	for _, t := range orbTargets {
+		fmt.Printf("[collector] Orb: %s (device=%s) every %s\n", t.Client.BaseURL(), t.DeviceID, orbPollInterval)
+	}
 	if orbServer != "" {
 		fmt.Printf("[collector] Orb Server: %s\n", orbServer)
 	}
@@ -60,19 +60,24 @@ func runCollect(cmd *cobra.Command, args []string) error {
 		os.Exit(0)
 	}()
 
-	var (
+	// Per-target endpoint tracking
+	type targetState struct {
 		respEndpoint   string
 		wifiEndpoint   string
 		speedEndpoint  string
 		scoresEndpoint string
-		pollCount      int
-		totalResp      int
-		totalWifi      int
-		totalSpeed     int
-		totalScores    int
-		totalAP        int
-		lastAPPoll     time.Time
-		lastSpeedPoll  time.Time
+	}
+	targetStates := make([]targetState, len(orbTargets))
+
+	var (
+		pollCount     int
+		totalResp     int
+		totalWifi     int
+		totalSpeed    int
+		totalScores   int
+		totalAP       int
+		lastAPPoll    time.Time
+		lastSpeedPoll time.Time
 	)
 
 	for {
@@ -88,28 +93,35 @@ func runCollect(cmd *cobra.Command, args []string) error {
 			testID = &activeTest.ID
 		}
 
-		// Orb: poll every cycle (1s)
-		respRecords, respRaw, ep, _ := orbClient.FetchResponsivenessRaw()
-		if len(respRecords) > 0 && ep != respEndpoint {
-			respEndpoint = ep
-			fmt.Printf("[collector] Using %s for responsiveness\n", ep)
-		}
-		nResp, _ := db.InsertResponsiveness(respRecords, respRaw, testID, orbDeviceID)
+		// Orb: poll each target every cycle (1s)
+		var nResp, nWifi, nScores int
+		for i, t := range orbTargets {
+			ts := &targetStates[i]
 
-		wifiRecords, wifiRaw, ep, _ := orbClient.FetchWifiLinkRaw()
-		if len(wifiRecords) > 0 && ep != wifiEndpoint {
-			wifiEndpoint = ep
-			fmt.Printf("[collector] Using %s for wifi_link\n", ep)
-		}
-		nWifi, _ := db.InsertWifiLink(wifiRecords, wifiRaw, testID, orbDeviceID)
+			respRecords, respRaw, ep, _ := t.Client.FetchResponsivenessRaw()
+			if len(respRecords) > 0 && ep != ts.respEndpoint {
+				ts.respEndpoint = ep
+				fmt.Printf("[collector] [%s] Using %s for responsiveness\n", t.DeviceID, ep)
+			}
+			n, _ := db.InsertResponsiveness(respRecords, respRaw, testID, t.DeviceID)
+			nResp += n
 
-		// Scores: poll every cycle (1s)
-		scoresRecords, scoresRaw, ep, _ := orbClient.FetchScoresRaw()
-		if len(scoresRecords) > 0 && ep != scoresEndpoint {
-			scoresEndpoint = ep
-			fmt.Printf("[collector] Using %s for scores\n", ep)
+			wifiRecords, wifiRaw, ep2, _ := t.Client.FetchWifiLinkRaw()
+			if len(wifiRecords) > 0 && ep2 != ts.wifiEndpoint {
+				ts.wifiEndpoint = ep2
+				fmt.Printf("[collector] [%s] Using %s for wifi_link\n", t.DeviceID, ep2)
+			}
+			n, _ = db.InsertWifiLink(wifiRecords, wifiRaw, testID, t.DeviceID)
+			nWifi += n
+
+			scoresRecords, scoresRaw, ep3, _ := t.Client.FetchScoresRaw()
+			if len(scoresRecords) > 0 && ep3 != ts.scoresEndpoint {
+				ts.scoresEndpoint = ep3
+				fmt.Printf("[collector] [%s] Using %s for scores\n", t.DeviceID, ep3)
+			}
+			n, _ = db.InsertScores(scoresRecords, scoresRaw, testID, t.DeviceID)
+			nScores += n
 		}
-		nScores, _ := db.InsertScores(scoresRecords, scoresRaw, testID, orbDeviceID)
 
 		// AP: poll every 30s (all wireless clients)
 		if apConn != nil && time.Since(lastAPPoll) >= apPollInterval {
@@ -128,17 +140,20 @@ func runCollect(cmd *cobra.Command, args []string) error {
 			lastAPPoll = time.Now()
 		}
 
-		// Speed results: poll every 60s
+		// Speed results: poll every 60s (from each target)
 		if time.Since(lastSpeedPoll) >= speedPollInterval {
-			speedRecords, speedRaw, ep, _ := orbClient.FetchSpeedResultsRaw()
-			if len(speedRecords) > 0 && ep != speedEndpoint {
-				speedEndpoint = ep
-				fmt.Printf("[collector] Using %s for speed_results\n", ep)
-			}
-			nSpeed, _ := db.InsertSpeedResults(speedRecords, speedRaw, testID, orbDeviceID)
-			totalSpeed += nSpeed
-			if nSpeed > 0 {
-				fmt.Printf("[collector] Speed: +%d records\n", nSpeed)
+			for i, t := range orbTargets {
+				ts := &targetStates[i]
+				speedRecords, speedRaw, ep, _ := t.Client.FetchSpeedResultsRaw()
+				if len(speedRecords) > 0 && ep != ts.speedEndpoint {
+					ts.speedEndpoint = ep
+					fmt.Printf("[collector] [%s] Using %s for speed_results\n", t.DeviceID, ep)
+				}
+				nSpeed, _ := db.InsertSpeedResults(speedRecords, speedRaw, testID, t.DeviceID)
+				totalSpeed += nSpeed
+				if nSpeed > 0 {
+					fmt.Printf("[collector] [%s] Speed: +%d records\n", t.DeviceID, nSpeed)
+				}
 			}
 			lastSpeedPoll = time.Now()
 		}
@@ -153,8 +168,8 @@ func runCollect(cmd *cobra.Command, args []string) error {
 			if activeTest != nil {
 				testLabel = fmt.Sprintf("test=%s", activeTest.Name)
 			}
-			fmt.Printf("[collector] polls=%d resp=%d wifi=%d scores=%d speed=%d ap=%d | %s\n",
-				pollCount, totalResp, totalWifi, totalScores, totalSpeed, totalAP, testLabel)
+			fmt.Printf("[collector] polls=%d resp=%d wifi=%d scores=%d speed=%d ap=%d orbs=%d | %s\n",
+				pollCount, totalResp, totalWifi, totalScores, totalSpeed, totalAP, len(orbTargets), testLabel)
 		}
 
 		// Sleep remainder of 1s interval

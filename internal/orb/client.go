@@ -31,6 +31,11 @@ func NewClient(host string, port int) *Client {
 	}
 }
 
+// BaseURL returns the base URL of the Orb API for display purposes.
+func (c *Client) BaseURL() string {
+	return fmt.Sprintf("http://%s:%d", c.host, c.port)
+}
+
 // datasetURL builds the Orb dataset URL.
 func (c *Client) datasetURL(dataset string) string {
 	return fmt.Sprintf("http://%s:%d/api/v2/datasets/%s.json?id=%s", c.host, c.port, dataset, callerID)

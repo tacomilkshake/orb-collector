@@ -17,6 +17,7 @@ var (
 	dbPath      string
 	orbHost     string
 	orbPort     int
+	orbHosts    string // comma-separated host:port pairs
 	orbServer   string
 	apConnector string
 	apURL       string
@@ -25,11 +26,18 @@ var (
 	apiPort     int
 )
 
+// OrbTarget represents a single Orb device to poll.
+type OrbTarget struct {
+	Client   *orb.Client
+	DeviceID string // host used as device identifier
+}
+
 // Initialized in PersistentPreRunE.
 var (
-	db        *store.Store
-	orbClient *orb.Client
-	apConn    connector.APConnector
+	db         *store.Store
+	orbClient  *orb.Client // single client (legacy)
+	orbTargets []OrbTarget // multiple orb targets
+	apConn     connector.APConnector
 )
 
 var rootCmd = &cobra.Command{
@@ -64,8 +72,32 @@ AP radio settings via pluggable connectors. It supports:
 			return fmt.Errorf("open database: %w", err)
 		}
 
-		// Initialize Orb client
-		orbClient = orb.NewClient(orbHost, orbPort)
+		// Initialize Orb client(s)
+		orbTargets = nil
+		if orbHosts != "" {
+			// Multi-orb mode: parse comma-separated host:port pairs
+			for _, entry := range strings.Split(orbHosts, ",") {
+				entry = strings.TrimSpace(entry)
+				if entry == "" {
+					continue
+				}
+				host, port := entry, orbPort
+				if h, p, ok := strings.Cut(entry, ":"); ok {
+					host = h
+					parsed, err := fmt.Sscanf(p, "%d", &port)
+					if err != nil || parsed != 1 {
+						return fmt.Errorf("invalid orb-hosts port in %q: %w", entry, err)
+					}
+				}
+				c := orb.NewClient(host, port)
+				orbTargets = append(orbTargets, OrbTarget{Client: c, DeviceID: host})
+			}
+		} else {
+			// Single-orb mode (legacy flags)
+			c := orb.NewClient(orbHost, orbPort)
+			orbTargets = append(orbTargets, OrbTarget{Client: c, DeviceID: orbHost})
+		}
+		orbClient = orbTargets[0].Client // keep for compatibility
 
 		// Initialize AP connector
 		switch apConnector {
@@ -107,8 +139,9 @@ func Execute() error {
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&dbPath, "db", "orb-collector.duckdb", "DuckDB database path")
-	rootCmd.PersistentFlags().StringVar(&orbHost, "orb-host", "10.0.1.47", "Orb sensor host")
-	rootCmd.PersistentFlags().IntVar(&orbPort, "orb-port", 8000, "Orb sensor port")
+	rootCmd.PersistentFlags().StringVar(&orbHost, "orb-host", "10.0.1.47", "Orb sensor host (single orb)")
+	rootCmd.PersistentFlags().IntVar(&orbPort, "orb-port", 8000, "Orb sensor port (single orb)")
+	rootCmd.PersistentFlags().StringVar(&orbHosts, "orb-hosts", "", "Comma-separated orb host:port pairs (overrides --orb-host/--orb-port)")
 	rootCmd.PersistentFlags().StringVar(&apConnector, "ap-connector", "omada", "AP connector (omada, none)")
 	rootCmd.PersistentFlags().StringVar(&apURL, "ap-url", "http://omada-bridge:8086", "AP connector base URL")
 	rootCmd.PersistentFlags().StringVar(&clientMAC, "client-mac", "20-F0-94-22-78-0D", "Client MAC address(es) to monitor (comma-separated for multiple)")
