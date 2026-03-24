@@ -30,7 +30,7 @@ func startAPIServer(s *store.Store, port int) {
 	mux.HandleFunc("GET /api/status", srv.handleStatus)
 	mux.HandleFunc("GET /api/health", srv.handleHealth)
 
-	addr := fmt.Sprintf("127.0.0.1:%d", port)
+	addr := fmt.Sprintf(":%d", port)
 	fmt.Printf("[api] HTTP server listening on %s\n", addr)
 
 	go func() {
