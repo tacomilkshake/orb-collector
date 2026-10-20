@@ -47,16 +47,16 @@ jobs:
           exit-code: '0'
           scanners: vuln
           severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
-      - name: Reject fixable critical vulnerabilities
+      - name: Reject fixable high and critical vulnerabilities
         run: |
           python3 - <<'PYSCAN'
           import json
           report=json.load(open('vulnerabilities.json'))
           blocked=[v for result in report.get('Results',[]) for v in result.get('Vulnerabilities',[])
-                   if v.get('Severity')=='CRITICAL' and v.get('FixedVersion')]
+                   if v.get('Severity') in ('HIGH','CRITICAL') and v.get('FixedVersion')]
           for item in blocked:
               print(item['VulnerabilityID'], item['PkgName'], item['InstalledVersion'], 'fixed:', item['FixedVersion'])
-          if blocked: raise SystemExit('Fix critical vulnerabilities before publishing')
+          if blocked: raise SystemExit('Fix high and critical vulnerabilities before publishing')
           PYSCAN
       - name: Upload vulnerability report
         if: always()
