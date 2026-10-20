@@ -7,7 +7,7 @@ RUN CGO_ENABLED=1 go test ./...
 RUN CGO_ENABLED=1 go build -o /orb-collector .
 
 FROM docker.io/library/debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl procps && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends ca-certificates curl procps && rm -rf /var/lib/apt/lists/*
 COPY --from=build /orb-collector /usr/local/bin/orb-collector
 WORKDIR /data
 ENTRYPOINT ["orb-collector"]

@@ -63,6 +63,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: vulnerabilities-${{ matrix.image }}-${{ matrix.variant }}
+          overwrite: true
           path: vulnerabilities.json
           if-no-files-found: warn
       - name: Log in to GHCR
@@ -98,4 +99,5 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: release-${{ matrix.image }}-${{ matrix.variant }}
+          overwrite: true
           path: release.txt
